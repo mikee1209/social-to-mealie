@@ -2,12 +2,14 @@ import { env } from "@/lib/constants";
 import { processSocialLink } from "@/lib/process-link";
 
 type TelegramMessage = {
+    message_id?: number;
     chat?: { id: number };
     text?: string;
     caption?: string;
 };
 
 type TelegramUpdate = {
+    update_id?: number;
     message?: TelegramMessage;
     edited_message?: TelegramMessage;
     channel_post?: TelegramMessage;
@@ -15,6 +17,20 @@ type TelegramUpdate = {
 };
 
 const URL_REGEX = /https?:\/\/[^\s]+/i;
+const UPDATE_TTL_MS = 30 * 60 * 1000;
+
+declare global {
+    // Keep a short-lived memory of updates to avoid duplicate webhook retries.
+    var __telegramInFlightUpdates: Map<string, number> | undefined;
+    var __telegramProcessedUpdates: Map<string, number> | undefined;
+}
+
+const inFlightUpdates =
+    globalThis.__telegramInFlightUpdates ||
+    (globalThis.__telegramInFlightUpdates = new Map<string, number>());
+const processedUpdates =
+    globalThis.__telegramProcessedUpdates ||
+    (globalThis.__telegramProcessedUpdates = new Map<string, number>());
 
 function getAllowedChatIds(): Set<string> {
     if (!env.TELEGRAM_ALLOWED_CHAT_IDS) {
@@ -39,13 +55,31 @@ function getDefaultTags(): string[] {
 }
 
 function extractMessage(update: TelegramUpdate): TelegramMessage | null {
-    return (
-        update.message ||
-        update.edited_message ||
-        update.channel_post ||
-        update.edited_channel_post ||
-        null
-    );
+    return update.message || update.channel_post || null;
+}
+
+function cleanupExpiredUpdates(now: number) {
+    for (const [id, timestamp] of inFlightUpdates.entries()) {
+        if (now - timestamp > UPDATE_TTL_MS) {
+            inFlightUpdates.delete(id);
+        }
+    }
+
+    for (const [id, timestamp] of processedUpdates.entries()) {
+        if (now - timestamp > UPDATE_TTL_MS) {
+            processedUpdates.delete(id);
+        }
+    }
+}
+
+function getUpdateKey(update: TelegramUpdate, message: TelegramMessage): string {
+    if (typeof update.update_id === "number") {
+        return `u:${update.update_id}`;
+    }
+
+    const chatId = message.chat?.id ?? "unknown-chat";
+    const messageId = message.message_id ?? "unknown-message";
+    return `m:${chatId}:${messageId}`;
 }
 
 async function sendTelegramMessage(chatId: number, text: string) {
@@ -90,63 +124,78 @@ export async function POST(req: Request) {
     try {
         const update = (await req.json()) as TelegramUpdate;
         const message = extractMessage(update);
+        const now = Date.now();
+
+        cleanupExpiredUpdates(now);
 
         if (!message?.chat?.id) {
             return Response.json({ ok: true, ignored: "No message payload" });
         }
 
-        const chatId = message.chat.id;
-        const allowedChatIds = getAllowedChatIds();
-
-        if (allowedChatIds.size > 0 && !allowedChatIds.has(String(chatId))) {
-            return Response.json({ ok: true, ignored: "Chat not allowed" });
+        const updateKey = getUpdateKey(update, message);
+        if (inFlightUpdates.has(updateKey) || processedUpdates.has(updateKey)) {
+            return Response.json({ ok: true, ignored: "Duplicate update" });
         }
 
-        const text = (message.text || message.caption || "").trim();
-        if (!text) {
-            await sendTelegramMessage(
-                chatId,
-                "Send a social media post link and I will import it to Mealie."
-            );
-            return Response.json({ ok: true, ignored: "No text" });
-        }
-
-        if (/^(\/start|\/help)\b/i.test(text)) {
-            await sendTelegramMessage(
-                chatId,
-                "Send a social media post URL (Instagram, TikTok, Facebook, YouTube Shorts, Pinterest) and I will create a recipe in Mealie."
-            );
-            return Response.json({ ok: true, handled: "help" });
-        }
-
-        const urlMatch = text.match(URL_REGEX);
-        if (!urlMatch?.[0]) {
-            await sendTelegramMessage(
-                chatId,
-                "I could not find a URL in your message. Please send a full link."
-            );
-            return Response.json({ ok: true, handled: "missing_url" });
-        }
-
-        const url = urlMatch[0].replace(/[),.;!?]+$/, "");
-        await sendTelegramMessage(chatId, `Processing link:\n${url}`);
+        inFlightUpdates.set(updateKey, now);
 
         try {
-            const { createdRecipe } = await processSocialLink(url, getDefaultTags());
+            const chatId = message.chat.id;
+            const allowedChatIds = getAllowedChatIds();
 
-            await sendTelegramMessage(
-                chatId,
-                `Recipe created: ${createdRecipe.name}\n${createdRecipe.url}`
-            );
-        } catch (error: any) {
-            console.error("Telegram processing failed:", error);
-            await sendTelegramMessage(
-                chatId,
-                `Failed to create recipe: ${error.message || "Unknown error"}`
-            );
+            if (allowedChatIds.size > 0 && !allowedChatIds.has(String(chatId))) {
+                return Response.json({ ok: true, ignored: "Chat not allowed" });
+            }
+
+            const text = (message.text || message.caption || "").trim();
+            if (!text) {
+                await sendTelegramMessage(
+                    chatId,
+                    "Send a social media post link and I will import it to Mealie."
+                );
+                return Response.json({ ok: true, ignored: "No text" });
+            }
+
+            if (/^(\/start|\/help)\b/i.test(text)) {
+                await sendTelegramMessage(
+                    chatId,
+                    "Send a social media post URL (Instagram, TikTok, Facebook, YouTube Shorts, Pinterest) and I will create a recipe in Mealie."
+                );
+                return Response.json({ ok: true, handled: "help" });
+            }
+
+            const urlMatch = text.match(URL_REGEX);
+            if (!urlMatch?.[0]) {
+                await sendTelegramMessage(
+                    chatId,
+                    "I could not find a URL in your message. Please send a full link."
+                );
+                return Response.json({ ok: true, handled: "missing_url" });
+            }
+
+            const url = urlMatch[0].replace(/[),.;!?]+$/, "");
+            await sendTelegramMessage(chatId, `Processing link:\n${url}`);
+
+            try {
+                const { createdRecipe } = await processSocialLink(url, getDefaultTags());
+
+                await sendTelegramMessage(
+                    chatId,
+                    `Recipe created: ${createdRecipe.name}\n${createdRecipe.url}`
+                );
+            } catch (error: any) {
+                console.error("Telegram processing failed:", error);
+                await sendTelegramMessage(
+                    chatId,
+                    `Failed to create recipe: ${error.message || "Unknown error"}`
+                );
+            }
+
+            return Response.json({ ok: true, handled: "processed" });
+        } finally {
+            inFlightUpdates.delete(updateKey);
+            processedUpdates.set(updateKey, Date.now());
         }
-
-        return Response.json({ ok: true, handled: "processed" });
     } catch (error: any) {
         console.error("Telegram webhook processing error:", error);
         return Response.json({ ok: true, error: error.message || "Unknown error" });
