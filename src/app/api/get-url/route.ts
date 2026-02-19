@@ -1,8 +1,5 @@
-import { getRecipe, postRecipe } from "@/lib/mealie";
-import type { progressType, socialMediaResult } from "@/lib/types";
-import { generateRecipeFromAI, getTranscription } from "@/lib/ai";
-import { env } from "@/lib/constants";
-import { downloadMediaWithYtDlp } from "@/lib/yt-dlp";
+import { processSocialLink } from "@/lib/process-link";
+import type { progressType } from "@/lib/types";
 
 interface RequestBody {
     url: string;
@@ -15,58 +12,31 @@ async function handleRequest(
     controller?: ReadableStreamDefaultController
 ) {
     const encoder = new TextEncoder();
-    let socialMediaResult: socialMediaResult;
-    let transcription = "There is not transcriptions";
-
-    const progress: progressType = {
+    let latestProgress: progressType = {
         videoDownloaded: null,
         audioTranscribed: null,
         recipeCreated: null,
     };
 
     try {
-        if (isSse && controller) {
-            controller.enqueue(
-                encoder.encode(`data: ${JSON.stringify({ progress })}\n\n`)
-            );
-        }
-        socialMediaResult = await downloadMediaWithYtDlp(url);
-        progress.videoDownloaded = true;
-
-        if (isSse && controller) {
-            controller.enqueue(
-                encoder.encode(`data: ${JSON.stringify({ progress })}\n\n`)
-            );
-        }
-        if (socialMediaResult.blob) {
-            transcription = await getTranscription(socialMediaResult.blob);
-            progress.audioTranscribed = true;
-            if (isSse && controller) {
-                controller.enqueue(
-                    encoder.encode(`data: ${JSON.stringify({progress})}\n\n`)
-                );
-            }
-        }
-
-        // Generate recipe JSON using AI
-        const recipe = await generateRecipeFromAI(
-            transcription,
-            socialMediaResult.description,
+        const { createdRecipe, progress: finalProgress } = await processSocialLink(
             url,
-            socialMediaResult.thumbnail,
-            env.EXTRA_PROMPT || "",
             tags,
-            socialMediaResult.images
+            (updatedProgress) => {
+                latestProgress = { ...updatedProgress };
+                if (isSse && controller) {
+                    controller.enqueue(
+                        encoder.encode(
+                            `data: ${JSON.stringify({ progress: latestProgress })}\n\n`
+                        )
+                    );
+                }
+            }
         );
-
-        console.log("Posting recipe to Mealie", recipe);
-        const mealieResponse = await postRecipe(recipe);
-        const createdRecipe = await getRecipe(await mealieResponse);
-        console.log("Recipe created");
-        progress.recipeCreated = true;
         if (isSse && controller) {
+            latestProgress = finalProgress;
             controller.enqueue(
-                encoder.encode(`data: ${JSON.stringify({ progress })}\n\n`)
+                encoder.encode(`data: ${JSON.stringify({ progress: latestProgress })}\n\n`)
             );
             controller.enqueue(
                 encoder.encode(`data: ${JSON.stringify(createdRecipe)}\n\n`)
@@ -74,17 +44,20 @@ async function handleRequest(
             controller.close();
             return;
         }
-        return new Response(JSON.stringify({ createdRecipe, progress }), {
+        return new Response(JSON.stringify({ createdRecipe, progress: finalProgress }), {
             status: 200,
         });
     } catch (error: any) {
+        const failedProgress = {
+            ...latestProgress,
+            recipeCreated: false,
+        };
         if (isSse && controller) {
-            progress.recipeCreated = false;
             controller.enqueue(
                 encoder.encode(
                     `data: ${JSON.stringify({
                         error: error.message,
-                        progress,
+                        progress: failedProgress,
                     })}\n\n`
                 )
             );
@@ -92,7 +65,7 @@ async function handleRequest(
             return;
         }
         return new Response(
-            JSON.stringify({ error: error.message, progress }),
+            JSON.stringify({ error: error.message, progress: failedProgress }),
             { status: 500 }
         );
     }

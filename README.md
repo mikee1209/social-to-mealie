@@ -21,6 +21,7 @@ websites, please open an issue.
 
 - Import posts into Mealie with a link and a click
 - [iOS Shortcut v0.3](https://www.icloud.com/shortcuts/3778d926ed794dca95e658c6a4b5cf11) for easy importing
+- Telegram bot webhook support to import by chat message
 
 ## Screenshot
 
@@ -81,6 +82,27 @@ docker run --restart unless-stopped --name social-to-mealie \
 | EXTRA_PROMPT              | No       | Additional instructions for AI, such as language translation                                                                           |
 | YTDLP_VERSION             | No       | Version of yt-dlp to use, defaults to latest                                                                                           |
 | COOKIES                   | No       | Cookies string for yt-dlp to access protected content `NAME=VALUE`                                                                     |
+| TELEGRAM_BOT_TOKEN        | No       | Telegram bot token from BotFather (required only for Telegram webhook imports)                                                         |
+| TELEGRAM_WEBHOOK_SECRET   | No       | Secret token configured in Telegram webhook, validated via `x-telegram-bot-api-secret-token`                                           |
+| TELEGRAM_ALLOWED_CHAT_IDS | No       | Comma-separated chat IDs allowed to use the bot. If empty, any chat can use it                                                         |
+| TELEGRAM_DEFAULT_TAGS     | No       | Comma-separated Mealie tags automatically added to Telegram imports                                                                     |
+
+## Telegram bot setup
+
+1. Create a bot with BotFather and set `TELEGRAM_BOT_TOKEN`.
+2. Set `TELEGRAM_WEBHOOK_SECRET` to a random string (recommended).
+3. Configure your webhook URL in Telegram:
+
+```sh
+curl -X POST "https://api.telegram.org/bot<TELEGRAM_BOT_TOKEN>/setWebhook" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "https://your-domain.example.com/api/telegram",
+    "secret_token": "<TELEGRAM_WEBHOOK_SECRET>"
+  }'
+```
+
+4. Send a social media link to your bot in Telegram. The bot will process the link and reply with the created Mealie recipe URL.
 
 ## Tested AI providers compatibility:
 
