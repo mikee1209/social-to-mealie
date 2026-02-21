@@ -55,7 +55,13 @@ function getDefaultTags(): string[] {
 }
 
 function extractMessage(update: TelegramUpdate): TelegramMessage | null {
-    return update.message || update.channel_post || null;
+    return (
+        update.message ||
+        update.edited_message ||
+        update.channel_post ||
+        update.edited_channel_post ||
+        null
+    );
 }
 
 function cleanupExpiredUpdates(now: number) {
@@ -117,6 +123,9 @@ export async function POST(req: Request) {
     if (env.TELEGRAM_WEBHOOK_SECRET) {
         const secretHeader = req.headers.get("x-telegram-bot-api-secret-token");
         if (!secretHeader || secretHeader !== env.TELEGRAM_WEBHOOK_SECRET) {
+            console.warn(
+                "Telegram webhook rejected: secret token mismatch or missing header"
+            );
             return Response.json({ ok: false, error: "Unauthorized" }, { status: 401 });
         }
     }
@@ -144,6 +153,9 @@ export async function POST(req: Request) {
             const allowedChatIds = getAllowedChatIds();
 
             if (allowedChatIds.size > 0 && !allowedChatIds.has(String(chatId))) {
+                console.warn(
+                    `Telegram webhook ignored message from unauthorized chat: ${chatId}`
+                );
                 return Response.json({ ok: true, ignored: "Chat not allowed" });
             }
 
