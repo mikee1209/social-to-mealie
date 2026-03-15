@@ -1,14 +1,17 @@
 services:
   social-to-mealie:
     restart: unless-stopped
+    build:
+      context: .
+      dockerfile: Dockerfile
     image: ghcr.io/gerardpollorebozado/social-to-mealie:latest
     container_name: social-to-mealie
     environment:
-      - OPENAI_URL=https://api.openai.com/v1 #URL of an OPENAI api compatible provider
+      - OPENAI_URL=${OPENAI_URL:-https://api.openai.com/v1} #URL of an OPENAI api compatible provider
       - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - TRANSCRIPTION_MODEL=whisper-1 # this model will be used to transcribe the audio to text
-      - TEXT_MODEL=model # the model you want to use to create the recipe in json using the transcription result
-      - MEALIE_URL=https://mealie.example.com # url of you mealie instance
+      - TRANSCRIPTION_MODEL=${TRANSCRIPTION_MODEL:-whisper-1} # this model will be used to transcribe the audio to text
+      - TEXT_MODEL=${TEXT_MODEL:-gpt-5-mini} # the model you want to use to create the recipe in json using the transcription result
+      - MEALIE_URL=${MEALIE_URL:-http://localhost:9000} # url of you mealie instance
       - MEALIE_API_KEY=${MEALIE_API_KEY}
       # Optionally specify yt-dlp version to use. Use "latest" or a release tag like "2025.11.01".
       # If provided, the container will try to download yt-dlp at startup
