@@ -72,12 +72,46 @@ docker run --restart unless-stopped --name social-to-mealie \
 
 </details>
 
+<details>
+    <summary>Local Development</summary>
+
+1. Clone the repository and install dependencies:
+    ```sh
+    git clone https://github.com/GerardPolloRebozado/social-to-mealie.git
+    cd social-to-mealie
+    ```
+
+2. Create a `.env` file based on `example.env` and fill in your values:
+    ```sh
+    cp example.env .env
+    ```
+
+3. Create an empty `cookies.txt` file (required by the volume mount even if unused):
+    ```sh
+    touch cookies.txt
+    ```
+
+4. Build and start the container locally:
+    ```sh
+    docker compose build
+    docker compose up -d
+    ```
+
+    The app will be available at `http://localhost:4000`.
+
+5. To view logs:
+    ```sh
+    docker logs -f social-to-mealie
+    ```
+
+</details>
+
 3. In order to be able to install the PWA the app needs to have HTTPS, you can use a reverse proxy like caddy or nginx, but be careful as opening this app to the internet as it will allow anyone to submit recipes to your Mealie instance. I recommend adding a small log in or IP whitelist
 
 ## Environment Variables
 
 | Variable                  | Required | Description                                                                                                                            |
-|---------------------------|----------|----------------------------------------------------------------------------------------------------------------------------------------|
+| ------------------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------- |
 | OPENAI_URL                | Yes      | URL for the OpenAI API or a compatible one                                                                                             |
 | OPENAI_API_KEY            | Yes      | API key for OpenAI or a compatible one                                                                                                 |
 | TRANSCRIPTION_MODEL       | No       | Whisper model to use, required when the local one is not filled                                                                        |
@@ -88,6 +122,7 @@ docker run --restart unless-stopped --name social-to-mealie \
 | MEALIE_GROUP_NAME         | No       | Mealie group name, defaults to "home"                                                                                                  |
 | EXTRA_PROMPT              | No       | Additional instructions for AI, such as language translation                                                                           |
 | YTDLP_VERSION             | No       | Version of yt-dlp to use, defaults to latest                                                                                           |
+| PORT                      | No       | Host port to expose the app on, defaults to 4000                                                                                       |
 | COOKIES                   | No       | Cookies string for yt-dlp to access protected content `NAME=VALUE`                                                                     |
 
 ## Tested AI providers compatibility:
@@ -97,7 +132,7 @@ docker run --restart unless-stopped --name social-to-mealie \
 
 ## Partial support:
 Because theese providers don't support the transcriptions API it requires LOCAL_TRANSCRIPTION_MODEL to be set, recommended model: `Xenova/whisper-base`, you can use any model that is compatible with the ONNX runtime from hugging face
-- llmstudio 
+- llmstudio
 - ollama
 
 Some recommended models for local AI are:

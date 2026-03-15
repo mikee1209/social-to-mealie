@@ -24,6 +24,6 @@ services:
     volumes:
       - ./cookies.txt:/app/cookies.txt # Optional, only needed for some content
     ports:
-      - 4000:3000
+      - ${PORT:-4000}:3000
     security_opt:
       - no-new-privileges:true
