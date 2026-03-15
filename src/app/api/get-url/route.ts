@@ -31,6 +31,16 @@ async function handleRequest(
             );
         }
         socialMediaResult = await downloadMediaWithYtDlp(url);
+
+        const hasUsableContent =
+            socialMediaResult.blob ||
+            (socialMediaResult.images && socialMediaResult.images.length > 0) ||
+            (socialMediaResult.thumbnail && socialMediaResult.thumbnail !== "notfound");
+
+        if (!hasUsableContent) {
+            throw new Error("Could not extract any media or metadata from the provided URL");
+        }
+
         progress.videoDownloaded = true;
 
         if (isSse && controller) {
