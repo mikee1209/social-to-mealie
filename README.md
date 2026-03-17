@@ -1,3 +1,5 @@
+<!-- markdownlint-disable MD033 -->
+<!-- markdownlint-disable MD041 -->
 
 <p align="center">
 <img width="150" src="./public/android-chrome-512x512.png" alt="logo" />
@@ -43,15 +45,16 @@ websites, please open an issue.
 <details open>
     <summary>Docker Compose</summary>
 
-1. Create a `docker-compose.yml` file based on
-   the [example](https://github.com/GerardPolloRebozado/social-to-mealie/blob/main/docker-compose.yml) in the repo and
-   fill in the required environment variables, if you prefer having them in a separate file you can create a `.env` file
-   based on the [example.env](https://github.com/GerardPolloRebozado/social-to-mealie/blob/main/example.env).
+1. Create a `docker-compose.yml` file based on the [docker-compose.example.yml](https://github.com/GerardPolloRebozado/social-to-mealie/blob/main/docker-compose.example.yml)
+   in the repo and fill in the required environment variables.
+   If you prefer having them in a separate file you can create a `.env` file based on the [example.env](https://github.com/GerardPolloRebozado/social-to-mealie/blob/main/example.env).
 
 2. **Start the service with Docker Compose:**
+
     ```sh
     docker-compose up -d
     ```
+
     </details>
 
 <details>
@@ -76,22 +79,27 @@ docker run --restart unless-stopped --name social-to-mealie \
     <summary>Local Development</summary>
 
 1. Clone the repository and install dependencies:
+
     ```sh
     git clone https://github.com/GerardPolloRebozado/social-to-mealie.git
     cd social-to-mealie
+    npm install
     ```
 
 2. Create a `.env` file based on `example.env` and fill in your values:
+
     ```sh
     cp example.env .env
     ```
 
-3. Create an empty `cookies.txt` file (required by the volume mount even if unused):
+3. Create an empty `cookies.txt` file (required by the volume mount if defined in `docker-compose.yml`):
+
     ```sh
     touch cookies.txt
     ```
 
 4. Build and start the container locally:
+
     ```sh
     docker compose build
     docker compose up -d
@@ -100,38 +108,44 @@ docker run --restart unless-stopped --name social-to-mealie \
     The app will be available at `http://localhost:4000`.
 
 5. To view logs:
+
     ```sh
     docker logs -f social-to-mealie
     ```
 
 </details>
 
-3. In order to be able to install the PWA the app needs to have HTTPS, you can use a reverse proxy like caddy or nginx, but be careful as opening this app to the internet as it will allow anyone to submit recipes to your Mealie instance. I recommend adding a small log in or IP whitelist
+> [!TIP]
+> In order to be able to install the PWA the app needs to have HTTPS, you can use a reverse proxy like caddy or nginx,
+> but be careful as opening this app to the internet as it will allow anyone to submit recipes to your Mealie instance.
+> I recommend adding a small log in or IP whitelist
 
 ## Environment Variables
 
-| Variable                  | Required | Description                                                                                                                            |
-| ------------------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| OPENAI_URL                | Yes      | URL for the OpenAI API or a compatible one                                                                                             |
-| OPENAI_API_KEY            | Yes      | API key for OpenAI or a compatible one                                                                                                 |
-| TRANSCRIPTION_MODEL       | No       | Whisper model to use, required when the local one is not filled                                                                        |
-| LOCAL_TRANSCRIPTION_MODEL | No       | Model ID from hugging face to use for local audio to text transcription, required when the provider doesn't support transcriptions API |
-| TEXT_MODEL                | Yes      | Text model to use for recipe generation                                                                                                |
-| MEALIE_URL                | Yes      | URL of your Mealie instance                                                                                                            |
-| MEALIE_API_KEY            | Yes      | API key for Mealie                                                                                                                     |
-| MEALIE_GROUP_NAME         | No       | Mealie group name, defaults to "home"                                                                                                  |
-| EXTRA_PROMPT              | No       | Additional instructions for AI, such as language translation                                                                           |
-| YTDLP_VERSION             | No       | Version of yt-dlp to use, defaults to latest                                                                                           |
-| PORT                      | No       | Host port to expose the app on, defaults to 4000                                                                                       |
-| COOKIES                   | No       | Cookies string for yt-dlp to access protected content `NAME=VALUE`                                                                     |
+| Variable                  | Required | Default                     | Description                                                                                                                            |
+| ------------------------- | -------- | --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| OPENAI_URL                | Yes      | `https://api.openai.com/v1` | URL for the OpenAI API or a compatible one                                                                                             |
+| OPENAI_API_KEY            | Yes      | —                           | API key for OpenAI or a compatible one                                                                                                 |
+| TRANSCRIPTION_MODEL       | No       | `whisper-1`                 | Whisper model to use, required when the local one is not filled                                                                        |
+| LOCAL_TRANSCRIPTION_MODEL | No       | —                           | Model ID from hugging face to use for local audio to text transcription, required when the provider doesn't support transcriptions API |
+| TEXT_MODEL                | Yes      | `gpt-5-mini`                | Text model to use for recipe generation                                                                                                |
+| MEALIE_URL                | Yes      | `http://localhost:9000`     | URL of your Mealie instance                                                                                                            |
+| MEALIE_API_KEY            | Yes      | —                           | API key for Mealie                                                                                                                     |
+| MEALIE_GROUP_NAME         | No       | `home`                      | Mealie group name                                                                                                                      |
+| EXTRA_PROMPT              | No       | —                           | Additional instructions for AI, such as language translation                                                                           |
+| YTDLP_VERSION             | No       | `latest`                    | Version of yt-dlp to use                                                                                                               |
+| PORT                      | No       | `4000`                      | Host port to expose the app on                                                                                                         |
+| COOKIES                   | No       | —                           | Cookies string for yt-dlp to access protected content `NAME=VALUE`                                                                     |
 
-## Tested AI providers compatibility:
+## Tested AI providers compatibility
 
 - OpenAI
 - GroqAI
 
-## Partial support:
+## Partial support
+
 Because theese providers don't support the transcriptions API it requires LOCAL_TRANSCRIPTION_MODEL to be set, recommended model: `Xenova/whisper-base`, you can use any model that is compatible with the ONNX runtime from hugging face
+
 - llmstudio
 - ollama
 
@@ -144,7 +158,5 @@ If you want to use another model the model needs to have tools support and visio
 If you want better results use the same models but in larger variants.
 
 It can work with any other provider that is compatible with the OpenAI API, if you find any issues please open an issue.
-
-
 
 [![Star History Chart](https://app.repohistory.com/api/svg?repo=GerardPolloRebozado/social-to-mealie&type=Date&background=0D1117&color=f86262)](https://app.repohistory.com/star-history)
