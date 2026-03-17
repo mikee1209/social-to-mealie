@@ -1,6 +1,3 @@
-<!-- markdownlint-disable MD033 -->
-<!-- markdownlint-disable MD041 -->
-
 <p align="center">
 <img width="150" src="./public/android-chrome-512x512.png" alt="logo" />
 </p>
