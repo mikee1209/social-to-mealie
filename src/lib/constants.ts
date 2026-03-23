@@ -21,4 +21,8 @@ export const env: envTypes = {
     EXTRA_PROMPT: process.env.EXTRA_PROMPT?.trim() || ("" as string),
     COOKIES: process.env.COOKIES?.trim() || ("" as string),
     LOCAL_TRANSCRIPTION_MODEL: process.env.LOCAL_TRANSCRIPTION_MODEL?.trim() || ("" as string),
+    TELEGRAM_BOT_TOKEN: process.env.TELEGRAM_BOT_TOKEN?.trim() || ("" as string),
+    TELEGRAM_WEBHOOK_SECRET: process.env.TELEGRAM_WEBHOOK_SECRET?.trim() || ("" as string),
+    TELEGRAM_ALLOWED_CHAT_IDS: process.env.TELEGRAM_ALLOWED_CHAT_IDS?.trim() || ("" as string),
+    TELEGRAM_DEFAULT_TAGS: process.env.TELEGRAM_DEFAULT_TAGS?.trim() || ("" as string),
 };

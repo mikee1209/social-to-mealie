@@ -18,6 +18,10 @@ export type envTypes = {
     EXTRA_PROMPT: string;
     COOKIES: string;
     LOCAL_TRANSCRIPTION_MODEL: string;
+    TELEGRAM_BOT_TOKEN: string;
+    TELEGRAM_WEBHOOK_SECRET: string;
+    TELEGRAM_ALLOWED_CHAT_IDS: string;
+    TELEGRAM_DEFAULT_TAGS: string;
 };
 
 export type recipeResult = {
